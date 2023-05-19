@@ -1,0 +1,31 @@
+# Dependency directories
+/node_modules
+
+# Testing directories
+/coverage
+
+# Build output
+/dist
+
+# Environment files
+.env
+
+# Log files
+*.log
+
+# Editor and IDE files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.bak
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Optional: Ignore specific files
+# /file-to-ignore.txt
