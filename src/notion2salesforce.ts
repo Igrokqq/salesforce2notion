@@ -8,6 +8,7 @@ import Logger from './logger';
 import { getConfig } from './config';
 
 const config = getConfig();
+const progressFilePath = join(__dirname, 'notion2salesforceprogress.json');
 
 const notion = new Client({
   auth: config.notionAuthToken,
@@ -31,8 +32,7 @@ function getSalesforceErrorMessageFromResult(result: jsforce.ErrorResult): strin
   }, []).join(',');
 }
 
-async function saveProgress(rowId: string) {
-  const path = join(__dirname, 'notion2salesforceprogress.json');
+async function saveProgress(path: string, rowId: string) {
 
   Logger.log(`[Notion2Salesforce]: saving progress ${rowId} row id`);
 
@@ -46,7 +46,9 @@ async function saveProgress(rowId: string) {
 }
 
 async function migrateContactsFromNotionToSalesforce() {
-  let lastRowId;
+  let lastRowId = await ProgressManager.getProgress(progressFilePath);
+  const hasSavedProgress = !_.isEmpty(lastRowId);
+  let startedFromProgressPoint = false;
 
   try {
     const notionContacts: QueryDatabaseResponse = await notion.databases.query({
@@ -55,6 +57,16 @@ async function migrateContactsFromNotionToSalesforce() {
     await salesforceConn.login(config.salesforceUsername, config.salesforcePassword);
 
     for (const contact of notionContacts.results as PageObjectResponse[]) {
+      if (hasSavedProgress && !startedFromProgressPoint) {
+        if (contact.id === lastRowId) {
+          startedFromProgressPoint = true;
+        } else {
+          continue;
+        }
+      }
+
+      lastRowId = contact.id;
+
       const lastName = _.get(contact.properties.LastName, 'title[0].text.content', null);
       const phoneNumber = _.get(contact.properties.Phone, 'phone_number', null);
       const company = _.get(contact.properties.Company, 'rich_text[0].text.content', null);
@@ -89,7 +101,7 @@ async function migrateContactsFromNotionToSalesforce() {
 
     Logger.log('[Notion2Salesforce]: migrated successfully!');
   } catch (error) {
-    await saveProgress(lastRowId);
+    await saveProgress(progressFilePath, lastRowId);
 
     Logger.error('[Notion2Salesforce]: migration failed', error);
   }
